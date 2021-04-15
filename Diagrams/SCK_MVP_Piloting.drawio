@@ -1,6 +1,6 @@
-<mxfile modified="2021-04-14T07:31:22.203Z" host="app.diagrams.net" agent="5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.114 Safari/537.36" etag="1SufA0jaaPNxnqTbVEm9" version="14.6.0" type="github" pages="2">
+<mxfile modified="2021-04-15T02:13:17.455Z" host="app.diagrams.net" agent="5.0 (Macintosh; Intel Mac OS X 11_2_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.114 Safari/537.36" etag="dyY4nAA6fHX-puVdrWNY" version="14.6.0" type="github" pages="2">
   <diagram id="PwlwIIyhIMaVgKpySGn4" name="SCK_MVP">
-    <mxGraphModel dx="1955" dy="999" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+    <mxGraphModel dx="1768" dy="1114" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
       <root>
         <mxCell id="CwHz1iRqRjEqNzLJlCqe-0" />
         <mxCell id="CwHz1iRqRjEqNzLJlCqe-1" parent="CwHz1iRqRjEqNzLJlCqe-0" />
@@ -225,7 +225,7 @@
         <mxCell id="7_jK2ILrcYIIPS7Bxu3c-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="CwHz1iRqRjEqNzLJlCqe-1" source="7_jK2ILrcYIIPS7Bxu3c-0" target="7_jK2ILrcYIIPS7Bxu3c-7">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="7_jK2ILrcYIIPS7Bxu3c-9" value="세션 정보" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="7_jK2ILrcYIIPS7Bxu3c-8">
+        <mxCell id="7_jK2ILrcYIIPS7Bxu3c-9" value="세션 정보" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" connectable="0" vertex="1" parent="7_jK2ILrcYIIPS7Bxu3c-8">
           <mxGeometry x="0.2104" y="-1" relative="1" as="geometry">
             <mxPoint as="offset" />
           </mxGeometry>
