@@ -2,7 +2,14 @@ import * as cdk from '@aws-cdk/core';
 import * as ecr from '@aws-cdk/aws-ecr';
 import ec2 = require('@aws-cdk/aws-ec2');
 import elasticache = require('@aws-cdk/aws-elasticache');
+import * as iam from '@aws-cdk/aws-iam';
 import { Peer } from '@aws-cdk/aws-ec2';
+
+/**
+ * [2021-04-22] KSH: Added for EKS.
+ */
+import * as eks from '@aws-cdk/aws-eks';
+import { EKSClusterStack } from './eks-cluster-stack';
 
 // [2021-04-17] KSH: Separte this to different child module.
 const PAYMENT_WEB_DOCKER_IMAGE_PREFIX = 'starbucks/payment-web';
@@ -12,6 +19,8 @@ const CODECOMMIT_REPO_NAME = "StarbucksECRSource";
 export class StarbucksCdkStack extends cdk.Stack {
 
 	readonly ecrRepository: ecr.Repository;
+	readonly ecClusterReplicationGroup: elasticache.CfnReplicationGroup;
+	readonly eksClusterStack: EKSClusterStack;
 
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -27,9 +36,39 @@ export class StarbucksCdkStack extends cdk.Stack {
 			removalPolicy: cdk.RemovalPolicy.DESTROY
 		});
 
+		const buildRole = new iam.Role(this, 'CodeBuildIamRole', {
+			assumedBy: new iam.ServicePrincipal('codebuild.amazonaws.com')
+		});
+		buildRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("AWSLambda_FullAccess"));
+		buildRole.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonAPIGatewayAdministrator"));
+
+		buildRole.addToPolicy(new iam.PolicyStatement({
+			resources: ['*'],
+			actions: ['cloudformation:*']
+		}));
+
+		buildRole.addToPolicy(new iam.PolicyStatement({
+			resources: ['*'],
+			actions: ['iam:*']
+		}));
+
+		buildRole.addToPolicy(new iam.PolicyStatement({
+			resources: ['*'],
+			actions: ['ecr:GetAuthorizationToken']
+		}));
+
+		buildRole.addToPolicy(new iam.PolicyStatement({
+			resources: [`${this.ecrRepository.repositoryArn}*`],
+			actions: ['ecr:*']
+		}));
+
+		// ECR LifeCycles
+		// repository.addLifecycleRule({ tagPrefixList: ['prod'], maxImageCount: 9999 });
+		this.ecrRepository.addLifecycleRule({ maxImageAge: cdk.Duration.days(30) });
+
 		/**
-		 * [2021-04-17] KSH
-		 * TODO: More elaborations for ECR.
+		 * [2021-04-22] KSH
+		 * TODO: Put CI/CD chains from this line.
 		 */
 
 		/**
@@ -48,10 +87,10 @@ export class StarbucksCdkStack extends cdk.Stack {
 		// TODO: Replace the source IP from the relevant one, such as Papaya server.
 		ecSecurityGroup.connections.allowFrom(Peer.ipv4("10.0.25.94/32"), ec2.Port.tcp(6379), 'Redis ingress 6379');
 
-		let publicSubnets: string[] = [];
-		vpc.publicSubnets.forEach(
+		let privateSubnets: string[] = [];
+		vpc.privateSubnets.forEach(
 			function(value) {
-				publicSubnets.push(value.subnetId)
+				privateSubnets.push(value.subnetId)
 			}
 		);
 
@@ -60,12 +99,12 @@ export class StarbucksCdkStack extends cdk.Stack {
 			"RedisClusterPrivateSubnetGroup",
 			{
 				description: "Elasticache Subnet Group",
-				subnetIds: publicSubnets,
+				subnetIds: privateSubnets,
 				cacheSubnetGroupName: "RedisSubnetGroup",
 			}
 		);
 
-		const ecClusterReplicationGroup = new elasticache.CfnReplicationGroup(
+		this.ecClusterReplicationGroup = new elasticache.CfnReplicationGroup(
 			this,
 			"RedisReplicaGroup",
 			{
@@ -85,6 +124,67 @@ export class StarbucksCdkStack extends cdk.Stack {
 				// transitEncryptionEnabled: true,				
 			}
 		);
-		ecClusterReplicationGroup.addDependsOn(ecSubnetGroup);
+		this.ecClusterReplicationGroup.addDependsOn(ecSubnetGroup);
+
+		/**
+		 * [2021-03-14 15:44:59]: KSH
+		 * Create EKS Cluster.
+		 */
+		this.eksClusterStack = new EKSClusterStack(this, 'StarbucksEKSCluster', vpc, props);
+
+
+		// Print outputs.
+		// Stack
+		new cdk.CfnOutput(this, 'StackId', {
+			value: this.stackId
+		});
+
+		new cdk.CfnOutput(this, 'StackName', {
+			value: this.stackName
+		});
+
+		// VPC.
+		new cdk.CfnOutput(this, 'VPCCidr', {
+			value: vpc.vpcCidrBlock
+		});
+
+		// ECR.
+		new cdk.CfnOutput(this, 'ECRName', {
+			value: this.ecrRepository.repositoryName
+		});
+
+		new cdk.CfnOutput(this, 'ECRArn', {
+			value: this.ecrRepository.repositoryArn
+		});
+
+		let codeCommitHint = `
+Create a "imagedefinitions.json" file and git add/push into CodeCommit repository "${CODECOMMIT_REPO_NAME}" with the following value:
+
+[
+  {
+    "name": "defaultContainer",
+    "imageUri": "${this.ecrRepository.repositoryUri}:latest"
+  }
+]
+`;
+
+		// CodeCommit.
+		new cdk.CfnOutput(this, 'Hint', {
+			value: codeCommitHint
+		});
+
+		// Redis.
+		new cdk.CfnOutput(this, 'RedisURL', {
+			value: this.ecClusterReplicationGroup.attrPrimaryEndPointAddress
+		});
+
+		new cdk.CfnOutput(this, 'RedisPort', {
+			value: this.ecClusterReplicationGroup.attrPrimaryEndPointPort
+		});
+
+		// EKS.
+		new cdk.CfnOutput(this, 'EKSClusterStackName', {
+			value: this.eksClusterStack.stackName
+		});
   }
 }
