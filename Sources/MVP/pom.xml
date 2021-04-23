@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+		 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- parent pom -->
+    <groupId>co.kr.starbucks</groupId>
+    <artifactId>mvp</artifactId>
+    <packaging>pom</packaging>
+    <version>1.0-SNAPSHOT</version>
+
+    <!-- properties -->
+    <properties>
+        <java.version>11</java.version>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+				<lombok.version>1.18.20</lombok.version>
+				<maven-surefire-plugin>2.22.2</maven-surefire-plugin>
+				<maven-compiler-plugin>3.8.1</maven-compiler-plugin>
+				<cucumber.java.version>6.10.2</cucumber.java.version>
+				<!-- settings for aws -->
+				<aws-java-sdk-bom>1.11.1002</aws-java-sdk-bom>
+				<software.amazon.awssdk>2.16.45</software.amazon.awssdk>
+				<log4j.core>2.14.1</log4j.core>
+				<log4j.api>2.14.1</log4j.api>
+				<log4j.slf4j.impl>2.14.1</log4j.slf4j.impl>
+				<jackson.version>2.12.3</jackson.version>
+        <maven.compiler.parameters>true</maven.compiler.parameters>
+        <compiler-plugin.version>3.8.1</compiler-plugin.version>
+    </properties>
+
+    <!-- sub modules -->
+    <modules>
+        <module>payment-web</module>
+    </modules>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${software.amazon.awssdk}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
+                <scope>import</scope>
+                <type>pom</type>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <!-- dependencies -->
+    <dependencies>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven-surefire-plugin}</version>
+                <configuration>
+                    <systemPropertyVariables>
+                        <software.amazon.awssdk.http.service.impl>
+                            software.amazon.awssdk.http.urlconnection.UrlConnectionSdkHttpService
+                        </software.amazon.awssdk.http.service.impl>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

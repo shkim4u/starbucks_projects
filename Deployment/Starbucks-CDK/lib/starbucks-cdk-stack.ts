@@ -4,6 +4,9 @@ import ec2 = require('@aws-cdk/aws-ec2');
 import elasticache = require('@aws-cdk/aws-elasticache');
 import * as iam from '@aws-cdk/aws-iam';
 import { Peer } from '@aws-cdk/aws-ec2';
+import * as s3 from '@aws-cdk/aws-s3';
+import * as codebuild from '@aws-cdk/aws-codebuild';
+import { CodeBuildProject } from '@aws-cdk/aws-events-targets';
 
 /**
  * [2021-04-22] KSH: Added for EKS.
@@ -67,9 +70,85 @@ export class StarbucksCdkStack extends cdk.Stack {
 		this.ecrRepository.addLifecycleRule({ maxImageAge: cdk.Duration.days(30) });
 
 		/**
-		 * [2021-04-22] KSH
-		 * TODO: Put CI/CD chains from this line.
+		 * [2021-04-23]: CodeBuild.
 		 */
+		const defaultSource = codebuild.Source.gitHub({
+			owner: 'shkim4u',
+			repo: 'starbucks_projects',
+			webhook: true,		// Optional. Default: true if 'webhookfilters' were provided, false otherwise.
+		})
+
+		let bucketName = 'starbucks-' + Math.random().toString(36).substring(7);
+		const starbucksBucket = new s3.Bucket(this, 'StarbucksBucket', {
+			bucketName: bucketName,
+			// The default removal policy is RETAIN, which means that cdk destroy will not attempt to delete
+			// the new bucket, and it will remain in your account until manually deleted. By setting the policy to
+			// DESTROY, cdk destroy will attempt to delete the bucket, but will error if the bucket is not empty.
+
+			//removalPolicy: cdk.RemovalPolicy.DESTROY, // NOT recommended for production code
+		});
+
+		starbucksBucket.grantPut(buildRole);
+		starbucksBucket.grantRead(buildRole);
+		starbucksBucket.grantReadWrite(buildRole);
+		starbucksBucket.grantWrite(buildRole);
+
+		const StarbucksCodeBuildProject = new codebuild.Project(this, 'StarbucksCodeBuildProject', {
+			role: buildRole,
+			source: defaultSource,
+			// Enable Docker AND custom caching
+			cache: codebuild.Cache.local(codebuild.LocalCacheMode.DOCKER_LAYER, codebuild.LocalCacheMode.CUSTOM),
+			environment: {
+				buildImage: codebuild.LinuxBuildImage.AMAZON_LINUX_2,
+				privileged: true,
+			},
+			buildSpec: codebuild.BuildSpec.fromObject({
+				version: '0.2',
+				phases: {
+					install: {
+						'runtime-versions': {
+							java: 'corretto11'
+						}
+					},
+					build: {
+						commands: [
+							'echo "Build all modules"',
+							'echo "Run Maven clean install to have all the required jars in local .m2 repository"',
+							'cd Sources/MVP',
+							'mvn clean install -Dmaven.test.skip=true'
+						]
+					},
+					post_build: {
+						commands: [
+							'TAG=${CODEBUILD_RESOLVED_SOURCE_VERSION}',
+							'LATEST="latest"',
+							'echo "Pack web modules into docker and push to ECR"',
+							'echo "ECR login now"',
+							'$(aws ecr get-login --no-include-email)',
+							'pwd',
+							'echo "build payment-web docker image"',
+							'cd payment-web',
+							'mvn package -Dmaven.test.skip=true',
+							`docker build -f src/main/docker/Dockerfile.jvm -t ${this.ecrRepository.repositoryUri}:$LATEST .`,
+							`docker images`,
+							`docker tag ${this.ecrRepository.repositoryUri}:$LATEST ${this.ecrRepository.repositoryUri}:$TAG`,
+							'echo "Pushing payment-web"',
+							`docker images`,
+							`docker push ${this.ecrRepository.repositoryUri}:$TAG`,
+							`docker push ${this.ecrRepository.repositoryUri}:$LATEST`,
+							'echo "finished ECR push"',
+						]
+
+					}
+				},
+				// cache:{
+				//     paths:[
+				//         '/root/.m2/**/*',
+				//     ]
+				// }
+			})
+		});
+
 
 		/**
 		 * [2021-04-17] KSH: Elasticache Redis
@@ -147,6 +226,14 @@ export class StarbucksCdkStack extends cdk.Stack {
 		new cdk.CfnOutput(this, 'VPCCidr', {
 			value: vpc.vpcCidrBlock
 		});
+
+		// CodeBuild.
+		new cdk.CfnOutput(this, 'StarbucksCodeBuildProjectArn', {
+			value: StarbucksCodeBuildProject.projectArn
+		})
+
+		new cdk.CfnOutput(this, 'Bucket', { value: starbucksBucket.bucketName });
+
 
 		// ECR.
 		new cdk.CfnOutput(this, 'ECRName', {
