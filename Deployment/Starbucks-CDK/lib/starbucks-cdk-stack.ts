@@ -71,6 +71,7 @@ export class StarbucksCdkStack extends cdk.Stack {
 
 		/**
 		 * [2021-04-23]: CodeBuild.
+		 * TODO: GitHub를 사용할 경우 아래 정보를 수정하여 WebHook 설정을 미리 해줄 것.
 		 */
 		const defaultSource = codebuild.Source.gitHub({
 			owner: 'shkim4u',
